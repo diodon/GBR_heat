@@ -1,0 +1,7 @@
+Band1=Band1/100.0;
+Band1@long_name="degree_heating_week";
+global@LME="Great Barrier Reef";
+global@Country="Australia";
+
+
+

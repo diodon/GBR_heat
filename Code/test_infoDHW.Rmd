@@ -1,0 +1,69 @@
+---
+title: "Untitled"
+author: "E Klein"
+date: "21/05/2021"
+output: html_document
+---
+
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+## extract DHW info from a DHW file crop by shapefile
+infoDHW = function(dhw, shp, map=TRUE){
+  require(raster)
+  require(formattable)
+  library(htmltools)
+  require(leaflet)
+  
+  rr = stack(dhw)[[90]]
+  shpMask = shapefile(shp)
+  rrCrop = crop(rr, shpMask)
+  rrMasked = mask(rr, shpMask)
+  rrValues = extract(rr, shpMask, df=TRUE)[[2]]
+  rrValid = length(rrMasked) - cellStats(rrMasked, "countNA")
+  
+  if (map){
+    add2 = spTransform(shpMask, "+init=epsg:4326")
+
+    pal <- colorNumeric(c("#2b83ba","#80bfac","#c7e9ad","#ffffbf", "#fec980", "#f17c4a", "#d7191c"), values(rr),
+                        na.color = "transparent")
+    shpMask2 = spTransform(shpMask, "+init=epsg:4326")
+    m = leaflet(add2) %>% addTiles() %>% addRasterImage(rr, colors = pal) %>% addPolygons(fill = FALSE) %>% 
+      addLegend(pal = pal, values = values(rr), title = "DHW")
+  
+  }
+  rrQuantile = as.numeric(quantile(rrMasked))
+  DHWtable = data.frame(DHWmean = cellStats(rrMasked, mean),
+                        DHWmin = cellStats(rrMasked, min),
+                        DHWmax = cellStats(rrMasked, max),
+                        DHWq25 = rrQuantile[2],
+                        DHWq50 = rrQuantile[3],
+                        DHWq75 = rrQuantile[4],
+                        DHW0 = 100*length(rrValues[rrValues==0])/rrValid,
+                        DHW2 = 100*length(rrValues[rrValues>0 & rrValues<=2])/rrValid,
+                        DHW4 = 100*length(rrValues[rrValues>2 & rrValues<=4])/rrValid,
+                        DHW8 = 100*length(rrValues[rrValues>4 & rrValues<=8])/rrValid,
+                        DHW8plus = 100*length(rrValues[rrValues>8])/rrValid)
+  
+  out = as.htmlwidget(formattable(DHWtable, digits=2,
+                                  col.names=c("Mean", "Min", "Max", "Q25", "Median", "Q75", 
+                                              "DHW 0", "DHW 0-2", "DHW 2-4", "DHW 4-8", "DHW 8+")))
+  out$dependencies = c(out$dependencies, htmlwidgets:::widget_dependencies("sparkline", "sparkline"))
+
+  return(list(map=m, table=out, values=rrValues))
+}
+
+```
+
+
+```{r echo=FALSE, warning=FALSE, results='asis', message=FALSE}
+dhw="Data/TestData/DHWday/DHW_2020.nc"
+#shp = "Data/TestData/LME_NortheastAustralianShelf.shp"
+shp="Data/TestData/testShape.shp"
+setwd("/home/eklein/Proyectos/AIMS/GBR_heat/")
+kk = infoDHW(dhw, shp)
+# 
+
+kk$map
+kk$table
+```
+
