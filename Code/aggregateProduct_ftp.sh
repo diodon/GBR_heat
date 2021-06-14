@@ -1,13 +1,17 @@
 #! /bin/bash
 ## Aggregate DHW in yearly files
+
+## Define year range and product
 yearStart=1985
 yearEnd=1995
 productName='dhw'
 productNameLong='degree_heating_week'
 
+## FTP credentials
 USER='anonymous'
 PASSWD='eklein@aims.gov.au'
 
+## ftp source
 crwURL='ftp.star.nesdis.noaa.gov'
 crwDir='pub/sod/mecb/crw/data/5km/v3.1/nc/v1.0/daily/'
 resultPath='./'
@@ -26,7 +30,9 @@ outDirAgg=${outDir}_aggregate
 mkdir -p $outDir
 mkdir -p $outDirAgg
 
+## loop over the year range
 for yy in `seq $yearStart $yearEnd`; do 
+    ## get the list of fiels for a particular year
     echo GETTING FILE LIST...
     echo $yy
     ftp -n $crwURL <<-GETFILES 
@@ -39,6 +45,8 @@ for yy in `seq $yearStart $yearEnd`; do
 GETFILES
     ## save fileList for future use
     cat filelist.tmp | grep -v -e "md5" >${productName}FileList_${yy}.txt
+    
+    
     echo GETTING FILES...
     ## get one year and aggregate into one file
     ftpPath=${crwURL}/${crwDir}${productName}/${yy}
