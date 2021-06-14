@@ -47,9 +47,9 @@ GETFILES
             yday=$(date -d $(echo $ff |cut -d _ -f 4 | cut -d. -f1) +%j)
             wget -O DHWtemp.nc ftp://$ftpPath/$ff
             gdalwarp -t_srs epsg:4326 -te $lonMin $latMin $lonMax $latMax NETCDF:"DHWtemp.nc":degree_heating_week temp.nc
-            ncap2 -S DHW.nca temp.nc 
-            ncrename -v Band1,DHW temp.nc
+            ncap2 -S DHW.nca temp.nc     ## this will re-scale DHW, returning as float
             ncap2 -s "TIME=${yday}; TIME@long_name=\"day_of_the_year\";" temp.nc
+            ncks -O -x -v Band1 temp.nc temp.nc     ## remove Band1, variable crated by gdalwarp
             ncecat -u TIME temp.nc ${outDir}/${roiName}${productName}_${ff}
             #ncks -v degree_heating_week -d lat,$latMn,$latMax -d lon,$lonMin,$lonMax DHWtemp.nc ${outDir}/${roiName}${productName}_${ff}
             rm temp.nc
