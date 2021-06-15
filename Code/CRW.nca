@@ -1,0 +1,7 @@
+DHW=float(Band1/100.0);
+DHW@long_name="degree_heating_week";
+global@LME="Great Barrier Reef";
+global@Country="Australia";
+
+
+

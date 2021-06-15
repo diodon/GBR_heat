@@ -2,10 +2,11 @@
 ## Aggregate DHW in yearly files
 
 ## Define year range and product
-yearStart=1985
-yearEnd=1995
-productName='dhw'
-productNameLong='degree_heating_week'
+yearStart=2010
+yearEnd=2020
+## productName must be one of dhw, sst, ssta, hs
+productName='ssta'
+productNameLong='sea_surface_temperature_anomaly'
 
 ## FTP credentials
 USER='anonymous'
@@ -53,13 +54,11 @@ GETFILES
     for ff in `cat ${productName}FileList_${yy}.txt`
         do
             yday=$(date -d $(echo $ff |cut -d _ -f 4 | cut -d. -f1) +%j)
-            wget -O DHWtemp.nc ftp://$ftpPath/$ff
-            gdalwarp -t_srs epsg:4326 -te $lonMin $latMin $lonMax $latMax NETCDF:"DHWtemp.nc":degree_heating_week temp.nc
-            ncap2 -S DHW.nca temp.nc     ## this will re-scale DHW, returning as float
-            ncap2 -s "TIME=${yday}; TIME@long_name=\"day_of_the_year\";" temp.nc
-            ncks -O -x -v Band1 temp.nc temp.nc     ## remove Band1, variable crated by gdalwarp
-            ncecat -u TIME temp.nc ${outDir}/${roiName}${productName}_${ff}
-            #ncks -v degree_heating_week -d lat,$latMn,$latMax -d lon,$lonMin,$lonMax DHWtemp.nc ${outDir}/${roiName}${productName}_${ff}
+            wget -O CRWtemp.nc ftp://$ftpPath/$ff
+            gdalwarp -t_srs epsg:4326 -te $lonMin $latMin $lonMax $latMax NETCDF:"CRWtemp.nc":${productNameLong} temp.nc
+            ncap2 -s "TIME=${yday}; TIME@long_name=\"day_of_the_year\"; Band1@long_name=\"${productNameLong}\"; Band1@scale_factor = 0.01f" temp.nc
+            ncrename -v Band1,${productNameLong} temp.nc
+            ncecat -u TIME temp.nc ${outDir}/${roiName}${productName}_${ff}     ## add TIME as record dimension
             rm temp.nc
         done
         ncrcat ${outDir}/*.nc ${outDirAgg}/${productName}_${yy}.nc
@@ -67,7 +66,5 @@ GETFILES
         rm $outDir/*.nc
 done
 
-rm filelist.tmp
-    
-exit
+## TODO: add global metadata to the resulting file
 
