@@ -68,7 +68,7 @@ GETFILES
     cat filelist.tmp | grep -v -e "md5" >${productName}FileList_${yy}.tmp
     for ff in `cat ${productName}FileList_${yy}.tmp`
         do 
-            echo ftp://${ftpPath}/${ff} >${productName}FileList_${yy}.txt
+            echo ftp://${ftpPath}/${ff} >>${productName}FileList_${yy}.txt
         done
     rm ${productName}FileList_${yy}.tmp
     
