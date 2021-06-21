@@ -78,13 +78,13 @@ GETFILES
     
     ## Loop over daily files
     for ff in `ls ${tmpPath}/*.nc`
-        do
+        do 
+            ffclean=`echo $ff | cut -d/ -f3`
             yday=$(date -d $(echo $ff |cut -d _ -f 4 | cut -d. -f1) +%j)
-            gdalwarp -t_srs epsg:4326 -te $lonMin $latMin $lonMax $latMax NETCDF:"${ff}":${productNameLong} temp.nc
+            gdalwarp -t_srs epsg:4326 -te $lonMin $latMin $lonMax $latMax -of NETCDF -overwrite NETCDF:"${ff}":${productNameLong} temp.nc
             ncap2 -s "TIME=${yday}; TIME@long_name=\"day_of_the_year\"; Band1@long_name=\"${productNameLong}\"; Band1@scale_factor = 0.01f" temp.nc
             ncrename -v Band1,${productNameLong} temp.nc
-            ncecat -u TIME temp.nc ${outDir}/${roiName}${productName}_${ff}     ## add TIME as record dimension
-            rm temp.nc
+            ncecat -u TIME temp.nc ${outDir}/${roiName}${productName}_${ffclean}     ## add TIME as record dimension
         done
         fileName=${roiName}${productName}_${yy}.nc
         ncrcat ${outDir}/*.nc ${outDirAgg}/$fileName
