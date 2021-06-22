@@ -55,6 +55,8 @@ for yy in `seq $yearStart $yearEnd`; do
     ## get the list of fiels for a particular year
     echo GETTING FILE LIST...
     echo $yy
+    
+    ## this is with FTP. Slower but failproof
     ftp -n $crwURL <<-GETFILES 
         prompt
         quote USER $USER
@@ -63,6 +65,14 @@ for yy in `seq $yearStart $yearEnd`; do
         ls -1 filelist.tmp
         bye
 GETFILES
+
+    fileLen=`wc -l filelist.tmp | cut -d\\   -f1`
+    if [ $fileLen -lt 730 ]
+        then
+            echo 'ERROR: Possible incomplete file list'
+            exit
+        fi
+    
     ## add ftp info and save fileList
     ftpPath=${crwURL}/${crwDir}${productName}/${yy}
     cat filelist.tmp | grep -v -e "md5" >${productName}FileList_${yy}.tmp
