@@ -105,6 +105,7 @@ GETFILES
         ncap2 -s "global@data_source=\"${crwURL}/${crwDir}${productName}/\";" ${fileName} 
         ## cleanup
         rm $tmpPath/*.nc
+        rm ${outDir}/*.nc
 done
 
 ## TODO: add global metadata to the resulting file

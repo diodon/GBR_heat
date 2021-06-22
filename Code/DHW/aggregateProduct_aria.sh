@@ -2,7 +2,7 @@
 ## Aggregate CRW products in yearly files clipped to a rectangular RoI
 
 ## Define year range and product
-yearStart=2011
+yearStart=2019
 yearEnd=2020
 
 ## uncomment to select variable
@@ -103,6 +103,7 @@ GETFILES
         ncap2 -s "global@data_source=\"${crwURL}/${crwDir}${productName}/\";" ${fileName} 
         ## cleanup
         rm $tmpPath/*.nc
+        rm ${outDir}/*.nc
 done
 
 ## TODO: add global metadata to the resulting file
