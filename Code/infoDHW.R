@@ -1,22 +1,36 @@
 ## extract DHW info from a DHW file crop by shapefile
-infoDHW = function(dhw, shp, map=TRUE){
-  require(raster)
+infoDHW = function(dhw, shp, polyType='WKT', map=TRUE){
+  require(formattable)
   require(sparkline)
   require(kableExtra)
   require(leaflet)
+  require(raster)
   
-  rr = raster(dhw)
-  shpMask = shapefile(shp)
-  rrCrop = crop(rr, shpMask)
-  rrMasked = mask(rr, shpMask)
-  rrValues = extract(rr, shpMask, df=TRUE)[[2]]
+  
+  rr = stack(dhw)
+  ## get max values map
+  rrMax = max(rr)
+  
+  if (polyType=="WKT"){
+    shpMask <- rgeos::readWKT(shp)
+    crs(shpMask) <- CRS('+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs')
+  }else if (polyType=="SHP"){
+    shpMask <- raster::shapefile(shp)
+  }else {
+    print(paste0(polyType, " not a valid format. Must be WKT or SHP"))
+    return()
+  }
+  
+  rrCrop = crop(rrMax, shpMask)
+  rrMasked = mask(rrMax, shpMask)
+  rrValues = extract(rrMax, shpMask, df=TRUE)[[2]]
   rrValid = length(rrMasked) - cellStats(rrMasked, "countNA")
   
   if (map){
     pal <- colorNumeric(c("#2b83ba","#80bfac","#c7e9ad","#ffffbf", "#fec980", "#f17c4a", "#d7191c"), values(rr),
                         na.color = "transparent")
-    shpMask2 = spTransform(shpMask, "+init=epsg:4326")
-    m = leaflet(add2) %>% addTiles() %>% addRasterImage(rrCrop, colors = pal) %>% addPolygons(fill = FALSE) %>% 
+    shpMask2 = spTransform(shpMask, '+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs')
+    m = leaflet(shpMask2) %>% addTiles() %>% addRasterImage(rrMax, colors = pal) %>% addPolygons(fill = FALSE) %>% 
       addLegend(pal = pal, values = values(rr), title = "DHW")
   
   }
@@ -34,7 +48,7 @@ infoDHW = function(dhw, shp, map=TRUE){
                         DHW28plus = 100*length(rrValues[rrValues>8])/rrValid,
                         DHWboxplot = as.character(htmltools::as.tags(sparkline(rrValues, type='boxplot'))))
   
-  out = as.htmlwidget(formattable(DHWtable))
+  out = as.htmlwidget(formattable(DHWtable, digits=3))
   out$dependencies = c(out$dependencies, htmlwidgets:::widget_dependencies("sparkline", "sparkline"))
 
   return(list(map=m, table=out))
