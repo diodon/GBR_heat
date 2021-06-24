@@ -46,7 +46,7 @@ for yy in `seq $yearStart $yearEnd`; do
     ## this is with FTP. Slower but failproof
     ftp -n $sourceURL <<-GETFILES 
         prompt
-        quote ftpUser $ftpUser
+        quote USER $ftpUser
         quote PASS $ftpPasswd
         cd $sourceDir$paramName/$yy
         ls -1 filelist.tmp
@@ -77,9 +77,13 @@ GETFILES
     for ff in `ls ${tmpPath}/*.nc`
         do 
             ffclean=`echo $ff | cut -d/ -f3`
-            ## NOTE: check if the time_coverage_start exits in the source file as global attr
+            ## NOTE: check if the time_coverage_start exits in the source file as global attr and the format of the value
             yday=$(date -d `ncks -M ${ff} | grep :time_coverage_start | cut -d\" -f2 | cut -dT -f1` +%j)
-            gdalwarp -t_srs epsg:4326 -te $lonMin $latMin $lonMax $latMax -of NETCDF -overwrite NETCDF:"${ff}":${paramNameLong} temp.nc
+            if [ -z $shpName ]; then 
+                gdalwarp -t_srs epsg:4326 -te $lonMin $latMin $lonMax $latMax -of NETCDF -overwrite NETCDF:"${ff}":${paramNameLong} temp.nc
+            else 
+                gdalwarp -t_srs epsg:4326 -cutline ${shpName} -of NETCDF -overwrite NETCDF:"${ff}":${paramNameLong} temp.nc
+            fi
             ncap2 -s "TIME=${yday}; TIME@long_name=\"day_of_the_year\"; Band1@long_name=\"${paramNameLong}\"; Band1@scale_factor = 0.01f" temp.nc
             ncrename -v Band1,${paramNameLong} temp.nc
             ncecat -u TIME temp.nc ${outDir}/${roiName}${paramName}_${ffclean}     ## add TIME as record dimension
