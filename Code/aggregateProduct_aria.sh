@@ -3,19 +3,20 @@
 ## this is for NOAA's CRW 
 
 ## read variables from params.json config file
-sourceURL=`jq -r .sourceURL params.json`
-sourceDir=`jq -r .sourceDir params.json`
-ftpUser=`jq -r .ftpUser params.json`
-ftpPasswd=`jq -r .ftpPasswd params.json`
+params=`jq . params.json`
+sourceURL=`echo $params | jq -r .sourceURL`
+sourceDir=`echo $params | jq -r .sourceDir`
+ftpUser=`echo $params | jq -r .ftpUser`
+ftpPasswd=`echo $params | jq -r .ftpPasswd`
 
-roiName=`jq -r .roiName params.json`
-yearStart=`jq -r .yearStart params.json`
-yearEnd=`jq -r .yearEnd params.json`
+roiName=`echo $params | jq -r .roiName`
+yearStart=`echo $params | jq -r .yearStart`
+yearEnd=`echo $params | jq -r .yearEnd`
 
-latMin=`jq -r .latMin params.json`
-latMax=`jq -r .latMax params.json`
-lonMin=`jq -r .lonMin params.json`
-lonMax=`jq -r .lonMax params.json`
+latMin=`echo $params | jq -r .latMin`
+latMax=`echo $params | jq -r .latMax`
+lonMin=`echo $params | jq -r .lonMin`
+lonMax=`echo $params | jq -r .lonMax`
 
 ## paramName must be one of dhw, sst, ssta, hotspot
 ## product name long MUST match the long name of the product
@@ -23,8 +24,8 @@ lonMax=`jq -r .lonMax params.json`
 ## ssta -> sea_surface_temperature_anomaly
 ## sst -> analysed_sst
 ## hs -> hotspot
-paramName=`jq -r .paramName params.json`
-paramNameLong=`jq -r .paramNameLong params.json`
+paramName=`echo $params | jq -r .paramName`
+paramNameLong=`echo $params | jq -r .paramNameLong`
 
 ## results path
 resultPath='./'
@@ -76,6 +77,7 @@ GETFILES
     for ff in `ls ${tmpPath}/*.nc`
         do 
             ffclean=`echo $ff | cut -d/ -f3`
+            ## NOTE: check if the time_coverage_start exits in the source file as global attr
             yday=$(date -d `ncks -M ${ff} | grep :time_coverage_start | cut -d\" -f2 | cut -dT -f1` +%j)
             gdalwarp -t_srs epsg:4326 -te $lonMin $latMin $lonMax $latMax -of NETCDF -overwrite NETCDF:"${ff}":${paramNameLong} temp.nc
             ncap2 -s "TIME=${yday}; TIME@long_name=\"day_of_the_year\"; Band1@long_name=\"${paramNameLong}\"; Band1@scale_factor = 0.01f" temp.nc
