@@ -56,8 +56,6 @@ mkdir -p $outDirAgg
 mkdir -p $tmpPath
 mkdir -p $fileListPath
 
-
-
 ## loop over the year range
 for yy in `seq $yearStart $yearEnd`; do 
     ## get the list of fiels for a particular year
@@ -116,7 +114,7 @@ GETFILES
             ##yday=$(date -d `ncks -M ${ff} | grep :time_coverage_start | cut -d\" -f2 | cut -dT -f1` +%j)
             
             
-            if [ $shpName == 'null' ]; then 
+            if [ ! $shpName == 'null' ]; then 
                 gdalwarp -t_srs epsg:4326 -te $lonMin $latMin $lonMax $latMax -of NETCDF -overwrite NETCDF:\"${ff}\":${paramNameLong} temp.nc
             else 
                 gdalwarp -t_srs epsg:4326 -cutline ${shpName} -of NETCDF -overwrite NETCDF:\"${ff}\":${paramNameLong} temp.nc
