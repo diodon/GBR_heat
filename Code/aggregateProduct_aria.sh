@@ -129,11 +129,11 @@ GETFILES
         ## Add global attrs
         
         ## get temporal coverage 
-        timeStart=`ncks -H --jsn -v TIME ${outDir}/${fileName} | jq .variables.TIME.data[1]`
-        timeEnd=`ncks -H --jsn -v TIME ${outDir}/${fileName} | jq .variables.TIME.data[-1]`
+        timeStart=`ncks -H --jsn -v TIME ${outDirAgg}/${fileName} | jq .variables.TIME.data[1]`
+        timeEnd=`ncks -H --jsn -v TIME ${outDirAgg}/${fileName} | jq .variables.TIME.data[-1]`
         epochYear=$(echo $timeValueSecsUnits | cut -d\  -f3)
-        timeStartDate=`date -d "${epochYear} ${timeStart} seconds"`
-        timeEndDate=`date -d "${epochYear} ${timeEnd} seconds"`
+        timeStartDate=`date -d "${epochYear} ${timeStart} seconds" +%Y-%m-%d`
+        timeEndDate=`date -d "${epochYear} ${timeEnd} seconds" +%Y-%m-%d`
 
         ncap2 -s "global@title=\"Daily ${paramNameLong} from ${roiName} region for year ${yy}\"; global@author=\"Eduardo Klein\"; global@author_email=\"eklein at ocean-analytics dot com dot au\"; global@creation_date=\"${todayDate}\";" ${outDirAgg}/${fileName} 
         ncap2 -s "global@geospatial_lat_min=${latMin}; global@geospatial_lat_max=${latMax}; global@geospatial_lon_min=${lonMin}; global@geospatial_lon_max=${lonMax};" ${outDirAgg}/${fileName}
