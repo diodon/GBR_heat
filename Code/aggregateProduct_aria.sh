@@ -33,10 +33,10 @@ latMin=`echo $params | jq -r .latMin`
 latMax=`echo $params | jq -r .latMax`
 lonMin=`echo $params | jq -r .lonMin`
 lonMax=`echo $params | jq -r .lonMax`
-shpName=`echo $params | jq -r .shpName`
+shpfileName=`echo $params | jq -r .shpfileName`
 
 ## get bounding box in case of shapefile
-if [ $shpName == 'null' ]; then
+if [ ! $shpfileName == 'none' ]; then
     shpExtent=`ogrinfo -al -geom=SUMMARY ${shpName} | grep Extent | cut -d: -f2`
     lonMin=`echo $shpExtent | cut -d\( -f2 | cut -d\, -f1`
     latMin=`echo $shpExtent | cut -d\( -f2 | cut -d\, -f2 | cut -d\) -f1`
@@ -74,25 +74,32 @@ GETFILES
 
     ## check if got a full file list
     ## TODO: make it to detect gaps not number of files. programm n repeated tries
+    ## check if list of files file exists
+    if [ ! -e filelist.tmp ]; then
+        echo ERROR: unable to get filelist from FTP. Possible timeout. EXIT
+        exit
+    fi 
+    ## Check if the number of file names is less than 265*2, including the .md5 checksum file
     fileLen=`wc -l filelist.tmp | cut -d\\   -f1`
-    if [ $fileLen -lt 730 ]
-        then
-            echo 'ERROR: Possible incomplete file list'
-            exit
-        fi
+    if [ $fileLen -lt 730 ]; then
+        echo 'ERROR: Possible incomplete file list. EXIT'
+        exit
+    fi
     
-    ## add ftp info and save fileList
+    ## add ftp info to the file name and save fileList
     ftpPath=${sourceURL}/${sourceDir}${paramName}/${yy}
     cat filelist.tmp | grep -v -e "md5" >${paramName}FileList_${yy}.tmp
     for ff in `cat ${paramName}FileList_${yy}.tmp`
         do 
-            echo ftp://${ftpPath}/${ff} >>${paramName}FileList_${yy}.txt
+            echo ftp://${ftpPath}/${ff} >>${fileListPath}/${paramName}FileList_${yy}.txt
         done
+    ## remove unused file list files
     rm ${paramName}FileList_${yy}.tmp
+    rm filelist.tmp
     
     echo GETTING FILES...
-    ## get one full year and aggregate into one file
-    aria2c -d ${tmpPath} -i ${paramName}FileList_${yy}.txt
+    ## get one full year of data
+    aria2c -d ${tmpPath} -i ${fileListPath}/${paramName}FileList_${yy}.txt
     
     ## Loop over daily files
     for ff in `ls ${tmpPath}/*.nc`
@@ -109,25 +116,23 @@ GETFILES
             if [ -z $paramScaleFactor ]; then
                 paramScaleFactor=1.0
             fi
+
             
-            ## NOTE: check if the time_coverage_start exits in the source file as global attr and the format of the value
-            ##yday=$(date -d `ncks -M ${ff} | grep :time_coverage_start | cut -d\" -f2 | cut -dT -f1` +%j)
-            
-            
-            if [ ! $shpName == 'null' ]; then 
+            if [ $shpfileName == 'none' ]; then 
                 gdalwarp -t_srs epsg:4326 -te $lonMin $latMin $lonMax $latMax -of NETCDF -overwrite NETCDF:\"${ff}\":${paramNameLong} temp.nc
             else 
-                gdalwarp -t_srs epsg:4326 -cutline ${shpName} -of NETCDF -overwrite NETCDF:\"${ff}\":${paramNameLong} temp.nc
+                gdalwarp -t_srs epsg:4326 -cutline ${shpfileName} -of NETCDF -overwrite NETCDF:\"${ff}\":${paramNameLong} temp.nc
             fi
             ncap2 -s "TIME=${timeValueSecs}; TIME@long_name=\"reference time of the ${paramNameLong} field\"; TIME@standard_name=\"time\"; TIME@units=${timeValueSecsUnits}; Band1@long_name=\"${paramNameLong}\"; Band1@scale_factor = ${paramScaleFactor};" temp.nc
             ncrename -v Band1,${paramNameLong} temp.nc
             ncecat -u TIME temp.nc ${outDir}/${roiName}${paramName}_${ffclean}     ## add TIME as record dimension
         done
+        
+        ## Concatenate one year into one file. Omit history attribute
         fileName=${roiName}${paramName}_${yy}.nc
-        ncrcat ${outDir}/*.nc ${outDirAgg}/$fileName
+        ncrcat -h ${outDir}/*.nc ${outDirAgg}/$fileName
         
         ## Add global attrs
-        
         ## get temporal coverage 
         timeStart=`ncks -H --jsn -v TIME ${outDirAgg}/${fileName} | jq .variables.TIME.data[1]`
         timeEnd=`ncks -H --jsn -v TIME ${outDirAgg}/${fileName} | jq .variables.TIME.data[-1]`
@@ -135,8 +140,8 @@ GETFILES
         timeStartDate=`date -d "${epochYear} ${timeStart} seconds" +%Y-%m-%d`
         timeEndDate=`date -d "${epochYear} ${timeEnd} seconds" +%Y-%m-%d`
 
-        ncap2 -s "global@title=\"Daily ${paramNameLong} from ${roiName} region for year ${yy}\"; global@author=\"Eduardo Klein\"; global@author_email=\"eklein at ocean-analytics dot com dot au\"; global@creation_date=\"${todayDate}\";" ${outDirAgg}/${fileName} 
-        ncap2 -s "global@geospatial_lat_min=${latMin}; global@geospatial_lat_max=${latMax}; global@geospatial_lon_min=${lonMin}; global@geospatial_lon_max=${lonMax};" ${outDirAgg}/${fileName}
+        ncap2 -s "global@title=\"Daily ${paramNameLong} from ${roiName} region for year ${yy}\"; global@author=\"Eduardo Klein\"; global@creator_email=\"e.klein@aims.gov.au\"; global@creator_url=\"aims.gov.au\"; global@creation_date=\"${todayDate}\";" ${outDirAgg}/${fileName} 
+        ncap2 -s "global@geospatial_crs=\"EPSG:4326\"; global@geospatial_lat_min=${latMin}; global@geospatial_lat_max=${latMax}; global@geospatial_lon_min=${lonMin}; global@geospatial_lon_max=${lonMax};" ${outDirAgg}/${fileName}
         ncap2 -s "global@temporal_coverage_start=\"${timeStartDate}\"; global@temporal_coverage_end=\"${timeEndDate}\";" ${outDirAgg}/${fileName}
         ncap2 -s "global@data_source=\"${sourceURL}/${sourceDir}${paramName}/\"; global@code_repository=\"https://github.com/diodon/GBR_heat\";" ${outDirAgg}/${fileName} 
         ## cleanup
