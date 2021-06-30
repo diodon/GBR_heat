@@ -17,7 +17,7 @@ todayDate=`date`
 
 paramFile=$1
 ## read variables from params.json config file
-params=`jq . params.json`
+params=`jq . ${1}`
 sourceURL=`echo $params | jq -r .sourceURL`
 sourceDir=`echo $params | jq -r .sourceDir`
 ftpUser=`echo $params | jq -r .ftpUser`
