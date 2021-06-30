@@ -131,7 +131,7 @@ GETFILES
             if [ $shpfileName == 'none' ]; then 
                 gdalwarp -t_srs epsg:4326 -te $lonMin $latMin $lonMax $latMax -of NETCDF -overwrite NETCDF:\"${ff}\":${paramNameLong} temp.nc
             else 
-                gdalwarp -t_srs epsg:4326 -cutline ${shpfileName} -of NETCDF -overwrite NETCDF:\"${ff}\":${paramNameLong} temp.nc
+                gdalwarp -t_srs epsg:4326 -te $lonMin $latMin $lonMax $latMax -cutline ${shpfileName} -of NETCDF -overwrite NETCDF:\"${ff}\":${paramNameLong} temp.nc
             fi
             ncap2 -s "time=${timeValueSecs}; time@long_name=\"reference time of the ${paramNameLong} field\"; time@standard_name=\"time\"; time@units=${timeValueSecsUnits}; Band1@long_name=\"${paramNameLong}\"; Band1@scale_factor = ${paramScaleFactor};" temp.nc
             ncrename -v Band1,${paramNameLong} temp.nc
