@@ -1,0 +1,17 @@
+{
+    "sourceURL": "ftp.star.nesdis.noaa.gov",
+    "sourceDir": "pub/sod/mecb/crw/data/5km/v3.1/nc/v1.0/daily/",
+    "ftpUser": "anonymous",
+    "ftpPasswd": "eklein@aims.gov.au",
+    "roiName": "GBR",
+    "paramName": "dhw",
+    "paramNameLong": "degree_heating_week",
+    "yearStart": 2011,
+    "yearEnd": 2020,
+    "latMin": -28.5,
+    "latMax": -6.5, 
+    "lonMin": 140.5,
+    "lonMax": 156.0,
+    "shpfileName": "none"
+}
+

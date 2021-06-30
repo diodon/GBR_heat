@@ -7,8 +7,15 @@
 ## this is for NOAA's CRW 
 ##
 
+if [ -z $1 ]; then
+    echo 'ERROR. Need a parameter file name. EXIT'
+    exit
+fi
+
+
 todayDate=`date`
 
+paramFile=$1
 ## read variables from params.json config file
 params=`jq . params.json`
 sourceURL=`echo $params | jq -r .sourceURL`
@@ -46,15 +53,15 @@ fi
 
 
 ## results path
-resultPath='./'
-fileListPath='./Filelist'
-tmpPath="./tmp"
-outDir=${resultPath}${roiName}$paramName
+resultPath=/data/${roiName}
+fileListPath=${resultPath}/${paramName}/Filelist
+tmpPath=${resultPath}/${paramName}/tmp
+outDir=${resultPath}/${paramName}/CRW
 outDirAgg=${outDir}_aggregate
+mkdir -p $fileListPath
+mkdir -p $tmpPath
 mkdir -p $outDir
 mkdir -p $outDirAgg
-mkdir -p $tmpPath
-mkdir -p $fileListPath
 
 ## loop over the year range
 for yy in `seq $yearStart $yearEnd`; do 
