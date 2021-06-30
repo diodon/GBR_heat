@@ -1,4 +1,5 @@
 {
+    "dataDir": "/data",
     "sourceURL": "ftp.star.nesdis.noaa.gov",
     "sourceDir": "pub/sod/mecb/crw/data/5km/v3.1/nc/v1.0/daily/",
     "ftpUser": "anonymous",
