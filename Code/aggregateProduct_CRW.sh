@@ -16,8 +16,11 @@ fi
 todayDate=`date`
 
 paramFile=$1
+echo Parameter file is ${paramFile}
+
 ## read variables from params.json config file
-params=`jq . ${1}`
+params=`jq . ${paramFile}`
+dataDir=`echo $params | jq -r .dataDir`
 sourceURL=`echo $params | jq -r .sourceURL`
 sourceDir=`echo $params | jq -r .sourceDir`
 ftpUser=`echo $params | jq -r .ftpUser`
@@ -44,7 +47,7 @@ shpfileName=`echo $params | jq -r .shpfileName`
 
 ## get bounding box in case of shapefile
 if [ ! $shpfileName == 'none' ]; then
-    shpExtent=`ogrinfo -al -geom=SUMMARY ${shpName} | grep Extent | cut -d: -f2`
+    shpExtent=`ogrinfo -al -geom=SUMMARY ${shpfileName} | grep Extent | cut -d: -f2`
     lonMin=`echo $shpExtent | cut -d\( -f2 | cut -d\, -f1`
     latMin=`echo $shpExtent | cut -d\( -f2 | cut -d\, -f2 | cut -d\) -f1`
     lonMax=`echo $shpExtent | cut -d\( -f3 | cut -d\, -f1`
@@ -53,7 +56,7 @@ fi
 
 
 ## results path
-resultPath=/data/${roiName}
+resultPath=${dataDir}/${roiName}
 fileListPath=${resultPath}/${paramName}/Filelist
 tmpPath=${resultPath}/${paramName}/tmp
 outDir=${resultPath}/${paramName}/CRW
@@ -111,8 +114,8 @@ GETFILES
     ## Loop over daily files
     for ff in `ls ${tmpPath}/*.nc`
         do 
-            ffclean=`echo $ff | cut -d/ -f3`
-            
+            ffclean=`echo $ff | rev | cut -d/ -f1 | rev`
+
             ## get time value and scale factor from original file
             ## NOTE: time is supossed to be a CF standard variable. Check in the source
             timeValue=`ncdump -i -v time ${ff} | grep time\ =\ \" | cut -d\" -f2 | cut -dT -f1`
@@ -130,9 +133,9 @@ GETFILES
             else 
                 gdalwarp -t_srs epsg:4326 -cutline ${shpfileName} -of NETCDF -overwrite NETCDF:\"${ff}\":${paramNameLong} temp.nc
             fi
-            ncap2 -s "TIME=${timeValueSecs}; TIME@long_name=\"reference time of the ${paramNameLong} field\"; TIME@standard_name=\"time\"; TIME@units=${timeValueSecsUnits}; Band1@long_name=\"${paramNameLong}\"; Band1@scale_factor = ${paramScaleFactor};" temp.nc
+            ncap2 -s "time=${timeValueSecs}; time@long_name=\"reference time of the ${paramNameLong} field\"; time@standard_name=\"time\"; time@units=${timeValueSecsUnits}; Band1@long_name=\"${paramNameLong}\"; Band1@scale_factor = ${paramScaleFactor};" temp.nc
             ncrename -v Band1,${paramNameLong} temp.nc
-            ncecat -u TIME temp.nc ${outDir}/${roiName}${paramName}_${ffclean}     ## add TIME as record dimension
+            ncecat -u time temp.nc ${outDir}/${roiName}${paramName}_${ffclean}     ## add time as record dimension
         done
         
         ## Concatenate one year into one file. Omit history attribute
@@ -141,8 +144,8 @@ GETFILES
         
         ## Add global attrs
         ## get temporal coverage 
-        timeStart=`ncks -H --jsn -v TIME ${outDirAgg}/${fileName} | jq .variables.TIME.data[1]`
-        timeEnd=`ncks -H --jsn -v TIME ${outDirAgg}/${fileName} | jq .variables.TIME.data[-1]`
+        timeStart=`ncks -H --jsn -v time ${outDirAgg}/${fileName} | jq .variables.time.data[1]`
+        timeEnd=`ncks -H --jsn -v time ${outDirAgg}/${fileName} | jq .variables.time.data[-1]`
         epochYear=$(echo $timeValueSecsUnits | cut -d\  -f3)
         timeStartDate=`date -d "${epochYear} ${timeStart} seconds" +%Y-%m-%d`
         timeEndDate=`date -d "${epochYear} ${timeEnd} seconds" +%Y-%m-%d`
