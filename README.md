@@ -27,17 +27,19 @@ The aggregation scripts are Bash scripts running in an Ubuntu 20.04 machine and 
 
 The following steps are executed to produce the yearly aggregated files:
 
-1.  Define the Region of Interest (ROI). The `roiName` is used as a identifying part of the file names. The rectangular area defined by corner lat/lon (`latMin`, `latMax`, `lonMin`, `lonMax`) are used to clip the region of interest.
+1.  Define the Region of Interest (ROI). The `roiName` is used as a identifying part of the file names. The extent of rectangular area defined by corner lat/lon (`latMin`, `latMax`, `lonMin`, `lonMax`) are used to clip the region of interest. The ROI could be also defined by a standrad ESRI shapefile (`shapefileName`). If the shapefile is provided, the extend is extracted from the file
+
+2.  Read the JSON parameter file and extract the key values
+
 
 For each year:
 
-1.  Read the parameter file and extract the key values
 
-2.  Connect to the \<ftp\> server and get the list of files from the `productName` and year. Clean the file list to keep only the `.nc` files
+1.  Connect to the \<ftp\> server and get the list of files from the `productName` and year. Clean the file list to keep only the `.nc` files
 
-3.  Download all the files for the corresponding year using `aria2`. The files are stored in a `./tmp` directory
+2.  Download all the files for the corresponding year using `aria2`. The files are stored in a `./tmp` directory
 
-4.  Process the individual files:
+3.  Process the individual files:
 
     1.  Get the day of the year from the `time` variable. (*NOTE*: even if `time` is CF compliant variable, it could be product dependent. It must be reviewed if changed to other sources)
 
@@ -51,14 +53,14 @@ For each year:
 
     6.  Save the file in a `roiName` + `paramName` directory
 
-5.  After all individual files are processed, concatenate the files into a single yearly file, named `roiName` + `paramName` + year
+4.  After all individual files are processed, concatenate the files into a single yearly file, named `roiName` + `paramName` + year
 
-6.  Add global attributes to the concatenated file
+5.  Add global attributes to the concatenated file
 
-7.  Clean temporal directories
+6.  Clean temporal directories
 
 
-The process will create a directory structure under data storage dir and roi to store downloaded files (tmp/), to store processed individual files (CRW) and finally to store the aggregated files per year (CRW_aggregate). At the end of the process the data from tmp and CRW directories will be deleted.
+The process will create a directory structure under data storage dir and roi to store downloaded files (tmp/), to store processed individual files (CRW/) and finally to store the aggregated files per year (CRW_aggregate/). At the end of the process the data from tmp/ and CRW/ directories will be deleted. The list of file names used to produce the aggregated product is stored in Filelist/ directory
 
 In this example, PLW is the region of interest, dhw the CRW parameter: 
 
