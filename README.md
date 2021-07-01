@@ -15,7 +15,7 @@ The aggregation scripts are Bash scripts running in an Ubuntu 20.04 machine and 
 
 | Software | Use                                                                                                                                                                                                   | Version                                              |
 |----------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------|
-| GDAL     | To clip the global file to the ROI and re project to EPSG:3226 (`gdalwarp`)                                                                                                                           | GDAL 3.0.4, released 2020/01/28                      |
+| GDAL     | To clip the global file to the ROI and re project to EPSG:4326 (`gdalwarp`)                                                                                                                           | GDAL 3.0.4, released 2020/01/28                      |
 | NCO      |  to modify the variables and attributes in the netCDF file (`ncap2` and `ncrename`). To concatenate (`ncecat`) the files into yearly aggregations. To edit variable and global attributes (`ncattred`)| version 4.9.1                                        |
 | jq       | to read and parse the json configuration file                                                                                                                                                         | jq-1.6                                               |
 | aria2    | to download the source files from the \<ftp\> server, using multiple simultaneous threads                                                                                                             | aria2 version 1.35.0                                 |
@@ -81,11 +81,12 @@ TODO
 The scripts will read a configuration file with the values of the operational variables. The configuration file must have the following keys (using DHW for the GBR region as an example):
 
     {
+        "dataDir": "url root of the storage container",
         "sourceURL": "ftp.star.nesdis.noaa.gov",
         "sourceDir": "pub/sod/mecb/crw/data/5km/v3.1/nc/v1.0/daily",
         "ftpUser": "anonymous",
         "ftpPasswd": "eklein@aims.gov.au",
-        "roiName": "GBR_",
+        "roiName": "GBR",
         "paramName": "dhw",
         "paramNameLong": "degree_heating_week",
         "yearStart": 2011,
@@ -94,12 +95,14 @@ The scripts will read a configuration file with the values of the operational va
         "latMax": -6.5, 
         "lonMin": 140.5,
         "lonMax": 156.0,
-        "shpFile": ""
+        "shpFile": "shapefile name"
     }
 
 If a polygon other than a rectangle is used to define the ROI, it must be submitted as an ESRI shapefile with ESPG:4326 (lat/lon WGS84) projection. If no shapefile will be use, the valu eof the key `shpfileName` MUST BE set to `none`.
 
 ### R functions
+
+TO COMPLETE: better to link to a Rmarkdown doc.
 
 These are functions to interact with the aggregated files.
 
