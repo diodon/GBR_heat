@@ -31,32 +31,34 @@ The following steps are executed to produce the yearly aggregated files:
 
 For each year:
 
-1.  Connect to the \<ftp\> server and get the list of files from the `productName` and year. Clean the file list to keep only the `.nc` files
+1.  Read the parameter file and extract the key values
 
-2.  Download all the files for the corresponding year using `aria2`. The files are stored in a `./tmp` directory
+2.  Connect to the \<ftp\> server and get the list of files from the `productName` and year. Clean the file list to keep only the `.nc` files
 
-3.  Process the individual files:
+3.  Download all the files for the corresponding year using `aria2`. The files are stored in a `./tmp` directory
 
-    1.  Get the day of the year from the global attribute `time_coverage_end` (*NOTE*: even if this attribute is CF compliant, it is product dependent. It must be reviewed if changed to other sources)
+4.  Process the individual files:
 
-    2.  Clip the file to the ROI.
+    1.  Get the day of the year from the `time` variable. (*NOTE*: even if `time` is CF compliant variable, it could be product dependent. It must be reviewed if changed to other sources)
 
-    3.  Add `TIME` variable equal to the day of the year. Add attributes
+    2.  Clip the file to the ROI using the roi extent. If a shapefile is provided, the values inside the roi but outside the shape are masked.
+
+    3.  Add `time` variable from the original file. Add `time` attributes
 
     4.  Rename `Band1` (as it is named after the clipping) to `paramNameLong`
 
-    5.  Set `TIME` as record dimension
+    5.  Set `time` as record dimension
 
     6.  Save the file in a `roiName` + `paramName` directory
 
-4.  After all individual files are processed, concatenate the files into a single yearly file, named `roiName` + `paramName` + year
+5.  After all individual files are processed, concatenate the files into a single yearly file, named `roiName` + `paramName` + year
 
-5.  Add global attributes to the concatenated file
+6.  Add global attributes to the concatenated file
 
-6.  Clean temporal directories
+7.  Clean temporal directories
 
 
-The process will create a directory structure under data storage dir and roi to store downloaded files (tmp/), to store processed individual files (CRW) and finally to store the aggregated files per year (CRW_aggregate). At the end of the process the directories will be cleaned.
+The process will create a directory structure under data storage dir and roi to store downloaded files (tmp/), to store processed individual files (CRW) and finally to store the aggregated files per year (CRW_aggregate). At the end of the process the data from tmp and CRW directories will be deleted.
 
 In this example, PLW is the region of interest, dhw the CRW parameter: 
 
