@@ -55,6 +55,21 @@ For each year:
 
 6.  Clean temporal directories
 
+
+The process will create a directory structure under data storage dir and roi to store downloaded files (tmp/), to store processed individual files (CRW) and finally to store the aggregated files per year (CRW_aggregate). At the end of the process the directories will be cleaned.
+
+In this example, PLW is the region of interest, dhw the CRW parameter: 
+
+```
+└── PLW
+    └── dhw
+        ├── CRW
+        ├── CRW_aggregate
+        ├── Filelist
+        └── tmp
+```
+
+
 #### Aggregation of year-to-date data
 
 TODO

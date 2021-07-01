@@ -11,7 +11,7 @@ output: html_document
 infoDHW = function(dhw, shp, map=TRUE){
   require(raster)
   require(formattable)
-  library(htmltools)
+  require(htmltools)
   require(leaflet)
   
   rr = stack(dhw)[[90]]

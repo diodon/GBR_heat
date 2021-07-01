@@ -1,110 +1,152 @@
 #! /bin/bash
-## Aggregate CRW products in yearly files clipped to a rectangular RoI
+## Aggregate satellite products in yearly files clipped to a rectangular RoI or shapefile
+## Eduardo Klein. eklein at ocean-analytics dot com dot au
+## see documentation and source at github diodon GBR_heat
+## June 2020
+##
+## this is for NOAA's CRW 
+##
 
-## Define year range and product
-yearStart=2011
-yearEnd=2020
+todayDate=`date`
 
-## uncomment to select variable
-## productName must be one of dhw, sst, ssta, hotspot
+## read variables from params.json config file
+params=`jq . params.json`
+sourceURL=`echo $params | jq -r .sourceURL`
+sourceDir=`echo $params | jq -r .sourceDir`
+ftpUser=`echo $params | jq -r .ftpUser`
+ftpPasswd=`echo $params | jq -r .ftpPasswd`
+
+roiName=`echo $params | jq -r .roiName`
+yearStart=`echo $params | jq -r .yearStart`
+yearEnd=`echo $params | jq -r .yearEnd`
+
+## paramName must be one of dhw, sst, ssta, hotspot
 ## product name long MUST match the long name of the product
 ## dhw -> degree_heatng_week
 ## ssta -> sea_surface_temperature_anomaly
 ## sst -> analysed_sst
 ## hs -> hotspot
+paramName=`echo $params | jq -r .paramName`
+paramNameLong=`echo $params | jq -r .paramNameLong`
 
-# productName='sst'
-# productName='ssta'
-# productName='dhw'
-productName='hs'
+latMin=`echo $params | jq -r .latMin`
+latMax=`echo $params | jq -r .latMax`
+lonMin=`echo $params | jq -r .lonMin`
+lonMax=`echo $params | jq -r .lonMax`
+shpfileName=`echo $params | jq -r .shpfileName`
 
-# productNameLong='analysed_sst'
-# productNameLong='sea_surface_temperature_anomaly'
-# productNameLong='degree_heatng_week'
-productNameLong='hotspot'
+## get bounding box in case of shapefile
+if [ ! $shpfileName == 'none' ]; then
+    shpExtent=`ogrinfo -al -geom=SUMMARY ${shpName} | grep Extent | cut -d: -f2`
+    lonMin=`echo $shpExtent | cut -d\( -f2 | cut -d\, -f1`
+    latMin=`echo $shpExtent | cut -d\( -f2 | cut -d\, -f2 | cut -d\) -f1`
+    lonMax=`echo $shpExtent | cut -d\( -f3 | cut -d\, -f1`
+    latMax=`echo $shpExtent | cut -d\( -f3 | cut -d\, -f2 | cut -d\) -f1`
+fi
 
 
-## FTP credentials
-USER='anonymous'
-PASSWD='eklein@aims.gov.au'
-
-## ftp source
-crwURL='ftp.star.nesdis.noaa.gov'
-crwDir='pub/sod/mecb/crw/data/5km/v3.1/nc/v1.0/daily/'
+## results path
 resultPath='./'
+fileListPath='./Filelist'
 tmpPath="./tmp"
-
-## (rectangular) window details
-## GBR
-roiName='GBR_'
-latMin=-28.5
-latMax=-6.5
-lonMin=140.5
-lonMax=156.0
-
-## create the target dir 
-outDir=${resultPath}${roiName}$productName
+outDir=${resultPath}${roiName}$paramName
 outDirAgg=${outDir}_aggregate
 mkdir -p $outDir
 mkdir -p $outDirAgg
 mkdir -p $tmpPath
-
+mkdir -p $fileListPath
 
 ## loop over the year range
 for yy in `seq $yearStart $yearEnd`; do 
     ## get the list of fiels for a particular year
     echo GETTING FILE LIST...
     echo $yy
-    ftp -n $crwURL <<-GETFILES 
+    
+    ## this is with FTP. Slower but failproof
+    ftp -n $sourceURL <<-GETFILES 
         prompt
-        quote USER $USER
-        quote PASS $PASSWD
-        cd $crwDir$productName/$yy
+        quote USER $ftpUser
+        quote PASS $ftpPasswd
+        cd $sourceDir$paramName/$yy
         ls -1 filelist.tmp
         bye
 GETFILES
 
+    ## check if got a full file list
+    ## TODO: make it to detect gaps not number of files. programm n repeated tries
+    ## check if list of files file exists
+    if [ ! -e filelist.tmp ]; then
+        echo ERROR: unable to get filelist from FTP. Possible timeout. EXIT
+        exit
+    fi 
+    ## Check if the number of file names is less than 265*2, including the .md5 checksum file
     fileLen=`wc -l filelist.tmp | cut -d\\   -f1`
-    if [ $fileLen -lt 730 ]
-        then
-            echo 'ERROR: Possible incomplete file list'
-            exit
-        fi
-
-    ## add ftp info and save fileList
-    ftpPath=${crwURL}/${crwDir}${productName}/${yy}
-    cat filelist.tmp | grep -v -e "md5" >${productName}FileList_${yy}.tmp
-    for ff in `cat ${productName}FileList_${yy}.tmp`
+    if [ $fileLen -lt 730 ]; then
+        echo 'ERROR: Possible incomplete file list. EXIT'
+        exit
+    fi
+    
+    ## add ftp info to the file name and save fileList
+    ftpPath=${sourceURL}/${sourceDir}${paramName}/${yy}
+    cat filelist.tmp | grep -v -e "md5" >${paramName}FileList_${yy}.tmp
+    for ff in `cat ${paramName}FileList_${yy}.tmp`
         do 
-            echo ftp://${ftpPath}/${ff} >>${productName}FileList_${yy}.txt
+            echo ftp://${ftpPath}/${ff} >>${fileListPath}/${paramName}FileList_${yy}.txt
         done
-    rm ${productName}FileList_${yy}.tmp
+    ## remove unused file list files
+    rm ${paramName}FileList_${yy}.tmp
+    rm filelist.tmp
     
     echo GETTING FILES...
     ## get one full year and aggregate into one file
-    aria2c -d ${tmpPath} -i ${productName}FileList_${yy}.txt
+    aria2c -d ${tmpPath} -i ${fileListPath}/${paramName}FileList_${yy}.txt
     
     ## Loop over daily files
     for ff in `ls ${tmpPath}/*.nc`
         do 
             ffclean=`echo $ff | cut -d/ -f3`
-            yday=$(date -d $(echo $ff |cut -d _ -f 4 | cut -d. -f1) +%j)
-            gdalwarp -t_srs epsg:4326 -te $lonMin $latMin $lonMax $latMax -of NETCDF -overwrite NETCDF:"${ff}":${productNameLong} temp.nc
-            ncap2 -s "TIME=${yday}; TIME@long_name=\"day_of_the_year\"; Band1@long_name=\"${productNameLong}\"; Band1@scale_factor = 0.01f" temp.nc
-            ncrename -v Band1,${productNameLong} temp.nc
-            ncecat -u TIME temp.nc ${outDir}/${roiName}${productName}_${ffclean}     ## add TIME as record dimension
+            
+            ## get time value and scale factor from original file
+            ## NOTE: time is supossed to be a CF standard variable. Check in the source
+            timeValue=`ncdump -i -v time ${ff} | grep time\ =\ \" | cut -d\" -f2 | cut -dT -f1`
+            timeValueSecs=`ncdump -v time ${ff} | tail -2 | head -1 | cut -d\  -f4`
+            timeValueSecsUnits=\"`ncdump -h ${ff} | grep time:units | cut -d\" -f2`\"
+            ## get parameter scale factor if any
+            paramScaleFactor=`ncdump -h $ff | grep ${paramNameLong}:scale_factor | cut -d\  -f3`
+            if [ -z $paramScaleFactor ]; then
+                paramScaleFactor=1.0
+            fi
+            
+            ## NOTE: check if the time_coverage_start exits in the source file as global attr and the format of the value
+            ##yday=$(date -d `ncks -M ${ff} | grep :time_coverage_start | cut -d\" -f2 | cut -dT -f1` +%j)
+            
+            
+            if [ $shpfileName == 'none' ]; then 
+                gdalwarp -t_srs epsg:4326 -te $lonMin $latMin $lonMax $latMax -of NETCDF -overwrite NETCDF:\"${ff}\":${paramNameLong} temp.nc
+            else 
+                gdalwarp -t_srs epsg:4326 -cutline ${shpfileName} -of NETCDF -overwrite NETCDF:\"${ff}\":${paramNameLong} temp.nc
+            fi
+            ncap2 -s "TIME=${timeValueSecs}; TIME@long_name=\"reference time of the ${paramNameLong} field\"; TIME@standard_name=\"time\"; TIME@units=${timeValueSecsUnits}; Band1@long_name=\"${paramNameLong}\"; Band1@scale_factor = ${paramScaleFactor};" temp.nc
+            ncrename -v Band1,${paramNameLong} temp.nc
+            ncecat -u TIME temp.nc ${outDir}/${roiName}${paramName}_${ffclean}     ## add TIME as record dimension
         done
-        fileName=${roiName}${productName}_${yy}.nc
+        fileName=${roiName}${paramName}_${yy}.nc
         ncrcat ${outDir}/*.nc ${outDirAgg}/$fileName
         
         ## Add global attrs
-        ncap2 -s "global@geospatial_lat_min=${latMin}; global@geospatial_lat_max=${latMax}; global@geospatial_lon_min=${lonMin}; global@geospatial_lon_max=${lonMax};" ${fileName}
-        ncap2 -s "global@temporal_coverage_start=${yearStart}; global@temporal_coverage_end=${yearEnd};" ${fileName}
-        ncap2 -s "global@data_source=\"${crwURL}/${crwDir}${productName}/\";" ${fileName} 
+        
+        ## get temporal coverage 
+        timeStart=`ncks -H --jsn -v TIME ${outDirAgg}/${fileName} | jq .variables.TIME.data[1]`
+        timeEnd=`ncks -H --jsn -v TIME ${outDirAgg}/${fileName} | jq .variables.TIME.data[-1]`
+        epochYear=$(echo $timeValueSecsUnits | cut -d\  -f3)
+        timeStartDate=`date -d "${epochYear} ${timeStart} seconds" +%Y-%m-%d`
+        timeEndDate=`date -d "${epochYear} ${timeEnd} seconds" +%Y-%m-%d`
+
+        ncap2 -s "global@title=\"Daily ${paramNameLong} from ${roiName} region for year ${yy}\"; global@author=\"Eduardo Klein\"; global@author_email=\"eklein at ocean-analytics dot com dot au\"; global@creation_date=\"${todayDate}\";" ${outDirAgg}/${fileName} 
+        ncap2 -s "global@geospatial_lat_min=${latMin}; global@geospatial_lat_max=${latMax}; global@geospatial_lon_min=${lonMin}; global@geospatial_lon_max=${lonMax};" ${outDirAgg}/${fileName}
+        ncap2 -s "global@temporal_coverage_start=\"${timeStartDate}\"; global@temporal_coverage_end=\"${timeEndDate}\";" ${outDirAgg}/${fileName}
+        ncap2 -s "global@data_source=\"${sourceURL}/${sourceDir}${paramName}/\"; global@code_repository=\"https://github.com/diodon/GBR_heat\";" ${outDirAgg}/${fileName} 
         ## cleanup
         rm $tmpPath/*.nc
         rm ${outDir}/*.nc
 done
-
-## TODO: add global metadata to the resulting file
-

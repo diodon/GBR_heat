@@ -2,10 +2,10 @@
 infoCRWmax_area = function(crwFilename, roiShape, mmmFilename=NULL, shpType='WKT', map=TRUE, verbose=TRUE){
   options(warn=-1)
 
-  require(ncdf4)
-  require(leaflet)
-  require(raster)
-  require(rgeos)
+  suppressPackageStartupMessages(require(ncdf4))
+  suppressPackageStartupMessages(require(leaflet))
+  suppressPackageStartupMessages(require(raster))
+  suppressPackageStartupMessages(require(rgeos))
 
   if (verbose){
     cat("Getting files...")

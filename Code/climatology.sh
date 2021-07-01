@@ -22,7 +22,7 @@ for ff in `cat fileList2020.txt`
         wget -O DHWtemp.nc $ftpPath$ff
         gdalwarp -cutline LME_NortheastAustralianShelf.shp -crop_to_cutline NETCDF:"DHWtemp.nc":degree_heating_week temp.nc 
         ncap2 -S DHW.nca temp.nc 
-                ncap2 -s "YDAY=${yday}; YDAY@long_name=\"day_of_the_year\";" temp.nc
+        ncap2 -s "YDAY=${yday}; YDAY@long_name=\"day_of_the_year\";" temp.nc
         ncks -x -v Band1 temp.nc ${resultPath}LME_${ff}
         rm temp.nc
     done

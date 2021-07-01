@@ -2,7 +2,7 @@
 ## Aggregate DHW in yearly files
 
 ## Define year range and product
-yearStart=2010
+yearStart=2011
 yearEnd=2020
 ## productName must be one of dhw, sst, ssta, hs
 productName='ssta'
@@ -61,7 +61,13 @@ GETFILES
             ncecat -u TIME temp.nc ${outDir}/${roiName}${productName}_${ff}     ## add TIME as record dimension
             rm temp.nc
         done
-        ncrcat ${outDir}/*.nc ${outDirAgg}/${productName}_${yy}.nc
+        fileName=${roiName}${productName}_${yy}.nc
+        ncrcat ${outDir}/*.nc ${outDirAgg}/$fileName
+        
+        ## Add global attrs
+        ncap2 -s "global@geospatial_lat_min=${latMin}; global@geospatial_lat_max=${latMax}; global@geospatial_lon_min=${lonMin}; global@geospatial_lon_max=${lonMax};" ${fileName}
+        ncap2 -s "global@temporal_coverage_start=${yearStart}; global@temporal_coverage_end=${yearEnd};" ${fileName}
+        ncap2 -s "global@data_source=\"${crwURL}/${crwDir}${productName}/\";" ${fileName} 
         ## cleanup
         rm $outDir/*.nc
 done
