@@ -59,15 +59,28 @@ fi
 resultPath=${dataDir}/${roiName}
 fileListPath=${resultPath}/${paramName}/Filelist
 tmpPath=${resultPath}/${paramName}/tmp
+logDir=${resultPath}/${paramName}/log
 outDir=${resultPath}/${paramName}/CRW
 outDirAgg=${outDir}_aggregate
 mkdir -p $fileListPath
 mkdir -p $tmpPath
 mkdir -p $outDir
 mkdir -p $outDirAgg
+mkdir -p $logDir
+
+logFile=$logDir/${roiName}${paramName}_log.log
+logFileAria=$logDir/${roiName}${paramName}_aria.log
+
+## log start 
+echo ========== >>$logFile
+echo `date`: START - processing $roiName $paramName from $yearStart thru $yearEnd. >>$logFile
 
 ## loop over the year range
 for yy in `seq $yearStart $yearEnd`; do 
+
+    ## log entry
+    echo `date`: PASS - start processing year $yy. >>$logFile
+
     ## get the list of fiels for a particular year
     echo GETTING FILE LIST...
     echo $yy
@@ -86,19 +99,28 @@ GETFILES
     ## TODO: make it to detect gaps not number of files. programm n repeated tries
     ## check if list of files file exists
     if [ ! -e filelist.tmp ]; then
-        echo ERROR: unable to get filelist from FTP. Possible timeout. EXIT
+        echo `date`: ERROR - unable to get filelist from FTP. Possible timeout. >>$logFile
+        echo `date`: EXIT >>$logFile
+        echo ========== >>$logFile
         exit
     fi 
-    ## Check if the number of file names is less than 265*2, including the .md5 checksum file
     fileLen=`wc -l filelist.tmp | cut -d\\   -f1`
+   
+    ## Check if the number of file names is less than 265*2, including the .md5 checksum file
     if [ $fileLen -lt 730 ]; then
-        echo 'ERROR: Possible incomplete file list. EXIT'
+        echo `date`: ERROR - Possible incomplete file list. >>$logFile
+        echo `date`: EXIT >>$logFile
+        echo ========== >>$logFile
         exit
     fi
     
     ## add ftp info to the file name and save fileList
     ftpPath=${sourceURL}/${sourceDir}${paramName}/${yy}
     cat filelist.tmp | grep -v -e "md5" >${paramName}FileList_${yy}.tmp
+    
+    ## Log number of files
+    echo `date`: PASS - $fileLen file names discovered from FTP. >>$logFile
+ 
     for ff in `cat ${paramName}FileList_${yy}.tmp`
         do 
             echo ftp://${ftpPath}/${ff} >>${fileListPath}/${paramName}FileList_${yy}.txt
@@ -109,7 +131,12 @@ GETFILES
     
     echo GETTING FILES...
     ## get one full year of data
-    aria2c -d ${tmpPath} -i ${fileListPath}/${paramName}FileList_${yy}.txt
+    aria2c -l ${logFileAria} -d ${tmpPath} -i ${fileListPath}/${paramName}FileList_${yy}.txt
+    fileLenAria=`ls ${tmpPath}/*.nc | wc -l`
+    
+    ## Log number downloaded files
+    echo `date`: PASS - $fileLenAria files downloaded from FTP. >>$logFile
+  
     
     ## Loop over daily files
     for ff in `ls ${tmpPath}/*.nc`
@@ -157,4 +184,12 @@ GETFILES
         ## cleanup
         rm $tmpPath/*.nc
         rm ${outDir}/*.nc
+        
+        ## log entry
+        echo `date`: PASS - Aggregation success! Data file for year $yy is ${outDir}/${roiName}${paramName}_${ffclean}. >>$logFile
+
 done
+
+## Log END 
+echo `date`: END  >>$logFile
+echo ========== >>$logFile
