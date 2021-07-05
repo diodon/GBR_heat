@@ -117,6 +117,7 @@ GETFILES
     ## add ftp info to the file name and save fileList
     ftpPath=${sourceURL}/${sourceDir}${paramName}/${yy}
     cat filelist.tmp | grep -v -e "md5" >${paramName}FileList_${yy}.tmp
+    fileLen=`wc -l ${paramName}FileList_${yy}.tmp | cut -d\\  -f1`
     
     ## Log number of files
     echo `date`: PASS - $fileLen file names discovered from FTP. >>$logFile
