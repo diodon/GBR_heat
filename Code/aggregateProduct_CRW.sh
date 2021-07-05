@@ -71,7 +71,8 @@ mkdir -p $logDir
 logFile=$logDir/${roiName}${paramName}_log.log
 logFileAria=$logDir/${roiName}${paramName}_aria.log
 
-## log start 
+## log start. Reset aria log file
+echo ========== >$logFileAria
 echo ========== >>$logFile
 echo `date`: START - processing $roiName $paramName from $yearStart thru $yearEnd. >>$logFile
 
