@@ -74,7 +74,7 @@ logFileAria=$logDir/${roiName}${paramName}_aria.log
 ## log start. Reset aria log file
 echo ========== >$logFileAria
 echo ========== >>$logFile
-echo `date`: START - processing $roiName $paramName from $yearStart thru $yearEnd. >>$logFile
+echo `date`: START - processing $roiName $paramName from $yearStart thru $yearEnd. >$logFile
 
 ## loop over the year range
 for yy in `seq $yearStart $yearEnd`; do 
