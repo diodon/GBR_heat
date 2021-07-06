@@ -132,8 +132,10 @@ GETFILES
     
     if [ -s ${fileListYtoD} ]; then
         diff ${fileListCurrent} ${fileListYtoD} |  sed 1d | sed 's/< //' >${fileListNew}
+        newRun=false
     else
         fileListNew=${fileListCurrent}
+        newRun=true
     fi
     
     
@@ -179,22 +181,29 @@ GETFILES
         
         ## Concatenate new files into the aggregated file. Omit history attribute
         fileName=${roiName}${paramName}_${currentYear}.nc
-        ncrcat -h ${outDirAgg}/$fileName ${outDir}/*.nc ${outDirAgg}/$fileName
-        
+        if [ $newRun == true ]; then
+            ncrcat -h ${outDir}/*.nc ${outDirAgg}/$fileName
+        else
+            ncrcat -h ${outDirAgg}/$fileName ${outDir}/*.nc ${outDirAgg}/$fileName
+        fi
+ 
+
         ## Add global attrs
         ## get temporal coverage 
         timeStart=`ncks -H --jsn -v time ${outDirAgg}/${fileName} | jq .variables.time.data[1]`
         timeEnd=`ncks -H --jsn -v time ${outDirAgg}/${fileName} | jq .variables.time.data[-1]`
         epochYear=$(echo $timeValueSecsUnits | cut -d\  -f3)
+        lastDate=`ncks --jsn -v time ${outDirAgg}/$fileName | jq .variables.time.data[-1]`
+        lastDate=`date -d "${epochYear} ${lastDate} seconds" +%Y-%m-%d
+
         timeStartDate=`date -d "${epochYear} ${timeStart} seconds" +%Y-%m-%d`
         timeEndDate=`date -d "${epochYear} ${timeEnd} seconds" +%Y-%m-%d`
 
         ncap2 -s "global@title=\"Daily ${paramNameLong} from ${roiName} region for year ${currentYear}\"; global@author=\"Eduardo Klein\"; global@creator_email=\"e.klein@aims.gov.au\"; global@creator_url=\"aims.gov.au\"; global@creation_date=\"${todayDate}\";" ${outDirAgg}/${fileName} 
         ncap2 -s "global@geospatial_crs=\"EPSG:4326\"; global@geospatial_lat_min=${latMin}; global@geospatial_lat_max=${latMax}; global@geospatial_lon_min=${lonMin}; global@geospatial_lon_max=${lonMax};" ${outDirAgg}/${fileName}
-        ncap2 -s "global@temporal_coverage_start=\"${timeStartDate}\"; global@temporal_coverage_end=\"${timeEndDate}\";" ${outDirAgg}/${fileName}
+        ncap2 -s "global@temporal_coverage_start=\"${timeStartDate}\"; global@temporal_coverage_end=\"${lastDate}\";" ${outDirAgg}/${fileName}
         ncap2 -s "global@data_source=\"${sourceURL}/${sourceDir}${paramName}/\"; global@code_repository=\"https://github.com/diodon/GBR_heat\";" ${outDirAgg}/${fileName} 
 
-        lastDate=`ncks --jsn -M TESTdhw_2021.nc | jq .attributes.temporal_coverage_end | sed 's/-//g'`
         
         
         ## cleanup
