@@ -105,16 +105,7 @@ GETFILES
         echo ========== >>$logFile
         exit
     fi 
-    fileLen=`wc -l filelist.tmp | cut -d\\   -f1`
    
-    ## Check if the number of file names is less than 265*2, including the .md5 checksum file
-    if [ $fileLen -lt 730 ]; then
-        echo `date`: ERROR - Possible incomplete file list. >>$logFile
-        echo `date`: EXIT >>$logFile
-        echo ========== >>$logFile
-        exit
-    fi
-    
     ## add ftp info to the file name and save fileList
     ftpPath=${sourceURL}/${sourceDir}${paramName}/${yy}
     cat filelist.tmp | grep -v -e "md5" >${paramName}FileList_${yy}.tmp
