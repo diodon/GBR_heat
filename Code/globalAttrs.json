@@ -15,7 +15,7 @@
   "date_metadata_modified": "",
   "date_modified": "",
   "geospatial_bounds_crs": "EPSG:4326",
-  "geospatial_bounds": "POLYGON((-90.0 180.0, 90.0 180.0, 90.0 -180.0, -90.0 -180.0, -90.0 180.0))",
+  "geospatial_bounds": "",
   "geospatial_lat_max": 0f
   "geospatial_lat_min": 0f
   "geospatial_lat_resolution": 0.f, 
