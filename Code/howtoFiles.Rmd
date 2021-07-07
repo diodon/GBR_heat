@@ -1,0 +1,330 @@
+---
+title: "CRW heat aggregated products"
+author: 'E. Klein'
+date: "2021-07-06"
+output: 
+  html_document:
+    toc:  TRUE
+    toc_float: TRUE
+    theme: spacelab
+    highlight: tango
+    code_folding: show
+editor_options: 
+  chunk_output_type: console
+---
+
+
+```{r setup, cache = F, echo = F, message = F, warning = F, tidy = F}
+# make this an external chunk that can be included in any file
+require(knitr)
+options(width = 100)
+opts_chunk$set(echo =T, message = F, error = F, warning = F, comment = NA,  
+               fig.align = 'left',  fig.width = 7.5, fig.height = 6,
+               tidy = F, cache.path = '.cache/', fig.path = 'fig/')
+               
+library(RColorBrewer)
+palette(brewer.pal(8, "Set2"))
+
+library(lubridate)
+library(ncdf4)
+library(raster)
+
+# Suppress summarise info
+options(dplyr.summarise.inform = FALSE)
+```
+
+last run `r Sys.time()`
+
+
+
+# Goal 
+
+This document describes the structure of the yearly aggregated Coral Reef Watch program heat indicators and the options available to access the data using R functions from selected packages. The individual daily files have been collected, clipped to a region of interest and aggregated into a yearly files for easy a quick access. This process removes the excessive downloading time of the original data files from the analysis pipeline. 
+
+The aggregating process is been done using a dedicated bash script available in https://github.com/diodon/GBR_heat
+
+# File structure
+
+The [CRW program](https://coralreefwatch.noaa.gov/index.php) provides a set of gap-free, 5km pixel resolution of coral bleaching and thermal stress indicators in daily files back to march 1985 to the present. The aggregation process collects all the daily files and produces a standard, almost CF compliant, netCDF file for each of the variables.
+
+At the moment, only files for degree heating week (dhw), sea surface temperature anomaly (ssta) and thermal hotspot (hs) have been aggregated. The historical data cover the period 1985-2020. The files for the current year are updated daily with the new data available and are in exactly the same format. 
+
+### Naming convention
+
+The aggregated file are named using the following convention:
+
+**`ROIvariable_yyyy.nc`**
+
+where:
+
+- `ROI`: name of the **R**egion **O**f **I**nterest. Like GBR
+- `variable`: short name of the CRW variable. 
+    + Degree heating week: `dhw`
+    + Sea surface temperature anomaly: `ssta`
+    + Thermal hotspot: `hs`
+- `YYYY`: year 
+
+Examples: `GBRdhw_2020.nc`. `GBRssta_2016.nc`, `GBRhs_1986.nc`
+
+
+Each file (except the current year) contains 365 records (366 for leap years) with `time`, `lon` and `lat` as its dimensions
+
+Each variable inside the file is named according it standard name: 
+
+- dhw: `degree_heating_week`
+- ssta: `sea_surface_temperature_anomaly`
+- hs: `hotspot`
+
+Each variable has a standard set of attributes and the file has a set of global attributes. This is a sample CDL of the variables from dhw aggregated file: 
+
+```
+netcdf GBRdhw_2020 {
+dimensions:
+        time = UNLIMITED ; // (366 currently)
+        lat = 440 ;
+        lon = 310 ;
+variables:
+        short degree_heating_week(time, lat, lon) ;
+                degree_heating_week:long_name = "degree_heating_week" ;
+                degree_heating_week:_FillValue = -32768s ;
+                degree_heating_week:grid_mapping = "crs" ;
+                degree_heating_week:units = "degree_Celsius_weeks" ;
+                degree_heating_week:scale_factor = 0.01f ;
+        char crs(time) ;
+                crs:grid_mapping_name = "latitude_longitude" ;
+                crs:long_name = "CRS definition" ;
+                crs:longitude_of_prime_meridian = 0. ;
+                crs:semi_major_axis = 6378137. ;
+                crs:inverse_flattening = 298.257223563 ;
+                crs:spatial_ref = "GEOGCS[\"WGS 84\",DATUM[\"WGS_1984\",SPHEROID[\"WGS 84\",6378137,298.257223563,AUTHORITY[\"EPSG\",\"7030\"]],AUTHORITY[\"EPSG\",\"6326\"]],PRIMEM[\"Greenwich\",0,AUTHORITY[\"EPSG\",\"8901\"]],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]],AXIS[\"Latitude\",NORTH],AXIS[\"Longitude\",EAST],AUTHORITY[\"EPSG\",\"4326\"]]" ;
+                crs:GeoTransform = "140.5 0.05 0 -6.5 0 -0.05 " ;
+        double lat(lat) ;
+                lat:standard_name = "latitude" ;
+                lat:long_name = "latitude" ;
+                lat:units = "degrees_north" ;
+        double lon(lon) ;
+                lon:standard_name = "longitude" ;
+                lon:long_name = "longitude" ;
+                lon:units = "degrees_east" ;
+        int time(time) ;
+                time:long_name = "reference time of the degree_heating_week field" ;
+                time:standard_name = "time" ;
+                time:units = "seconds since 1981-01-01 00:00:00" ;
+
+```
+
+The aggregated file is projected to **lat/lon WGS84 "ESPG:4326"**, and coordinates for each pixel are in the `lat` / `lon` variables. the `time` variable is stored in a CF complaint format: number of seconds since 1981-01-01 00:00:00. The reference epoch could be retrieved from the `time:units` attribute.
+
+The main variable is stored as an integer value with a scale factor (0.01f) which is normally taken into consideration when reading the file. This strategy produced a more compact file.
+
+# Access the data
+
+There few options available for accessing the data from the netCDF file:
+
+### NCDF4 package
+
+This option uses the native calls from the [ncdf4 package](https://cran.r-project.org/web/packages/ncdf4/index.html). Normally, the long-format dataframe with the values needs to be constructed manually, following these steps:
+
+1. Load the `ncdf4` package
+2. Open the connection to the file with `nc_open()`
+3. Extract the variable of interest with `ncvar_get()`. It will return a (large) array of latxlonx365 (or 366) values.
+4. Get the time variable with `ncvar_get()` and transform it to a standard datetime variable with `as.POSIXct()`. It will return a vector of 365 (or 366) date values
+5. Build a long-format data frame with `time`, `lat`, `lon`, `CRWvariable` (like dhw). This is a non direct process. We need to name the dimensions of the array and them flatten the structure into a data frame. 
+    + Extract the values of the coordinates. The order of the dimension is `lon`, `lat`, `time`. You need to extract the values of the coordinates to use them as dimension names. The `time` dimension could remains as a serial number 1:365 (or 366)
+    + set the dimnames of the array
+    + Flatten the array. This could be done with `reshape2::melt()`
+    + convert `time` to a proper date class
+
+The following function will take the name of the netCDF file and the name of the variable and returns a data frame in long format:
+
+```{r convertNCDF}
+## function to convert a CRW aggregated netCDF file into a data frame
+## fileName: name of the netCDF file
+## varName: name (standard) of the variable. Like degree_heating_week
+## return: data frame with time, lat, lon, variable
+ncdf2df <- function(fileName, varName="degree_heating_week"){
+  require(ncdf4)
+  require(reshape2)
+  
+  ## open connection
+  nc <- nc_open(fileName)
+  
+  ## check if variable is in file. If not, exit
+  if (! varName %in% names(nc$var)){ 
+    print(paste0("ERROR: ", varName, " not in file"))
+    return()
+    }
+  ## get variables
+  lat <- nc$dim$lat$vals
+  lon <- nc$dim$lon$vals
+  time <- nc$dim$TIME$vals
+  dataVar <- ncvar_get(nc, varName)
+  
+  ## get temporal_coverage_start
+  dateStart <- as.Date(ncatt_get(nc, 0, 'temporal_coverage_start')$value)
+  nc_close(nc)
+  
+  ## assign dimanmes
+  dimnames(dataVar) <- list('lon'=lon, 'lat'=lat, 'time'=1:length(time))
+  
+  ## flatten the array
+  df <- reshape2::melt(dataVar,value.name = varName)
+  
+  ## convert time sequence to date class object
+  df$time <- dateStart + (df$time - 1)
+  
+  return(df)
+}
+
+```
+
+
+This long-format dataframe could be useful for modelling purposes, when you need the values of the variable of interest in each of the pixels.
+
+
+### Raster package
+
+The [raster package](https://cran.r-project.org/web/packages/raster/index.html) is a different approach as the data stored in the netCDF file is managed as a raster object. It can be interrogated using `raster::` functions, and the data extracted using any `spatialObject`, like points, lines or polygons. 
+
+to read the data, follow this steps: 
+
+1. load `raster` package
+2. load the data as a `raster::stack`object. This will produce an object with 365/366 layers
+3. to extract data from a set of points: 
+    + Create a `spatialPoints`object, binding by columns a vector of longitudes and a vector of latitudes. `spatialPoints(cbind(longitudes, latitudes))`
+    + Extract data for the coordinates using `raster::extract(rasterObject, spatialObject, df=TRUE)`. The argument `df=TRUE` will output the data into a data frame.
+4. to extract data form a polygon: 
+    + Create a `spatialPolygon`object. this could be done reading a shapefile with `raster::shapefile()` or a WKT polygon with `rgeos::readWKT()`
+    + Crop the stack object using `raster::crop()` and the `spatialPolygon` object. It will crop the values using the **geographical extent** of the region of interest.
+    + Mask the cropped object using `raster::mask()`. It will mask the values outside the polygon of interest. Now you can used the masked raster to perform raster operations, like `raster::cellStats()` (layer-wise) or `raster::calc()` (cell-wise)
+
+
+# Examples
+
+These are some examples of possible products extracted from a dhw aggregated file. We will use the aggregated dhw values for 2020 from a ROI corresponding to the GBR region.
+
+All the following examples use a sample file correspondig to the 2020 dhw values for the GBR region. It could be downloaded form [here](https://drive.google.com/file/d/1lcRNaEgeBw3gt9mAd0lW5uHFV_PqQFcM/view?usp=sharing)
+
+```{r}
+## set the fileName
+## edit to your own location
+## this sample data can be downloaded at https://drive.google.com/file/d/1lcRNaEgeBw3gt9mAd0lW5uHFV_PqQFcM/view?usp=sharing
+fileName <- "../AggData/DHW/GBR_dhw_2020.nc"
+```
+
+
+### Long-format dataframe
+
+Using `ncdf4` package, transform the full file into a lat, lon, time, dhw data frame. Plot the dhw for a specific location. We will use the function `ncdf2df` used above
+
+```{r}
+df <- ncdf2df(fileName, varName = "degree_heating_week")
+str(df)
+
+## plot the time series of dhw for the coordinate lon=149.525 and lat=-19.475 (you need to know the exact coords!)
+dhw <- df$degree_heating_week[df$lon==149.525 & df$lat==-19.475]
+time <- unique(df$time)
+plot(time, dhw, ty='l')
+```
+
+
+### Plot dhw map
+
+Plot the map of dhw values for March 30th. This date is the day `r yday(ymd(20200330))` of the year 2020.
+
+```{r}
+require(raster)
+rr <- stack(fileName)
+
+## look at the raster object structure: 
+rr
+```
+
+Remember that each layer is the map for each of the days, chronologically. So for the 30 of March we are after the 90th map in the stack
+
+```{r}
+# lets define a nice dhw colour palette
+pal <- c("#2b83ba","#80bfac","#c7e9ad","#ffffbf", "#fec980", "#f17c4a", "#d7191c")
+plot(rr[[90]], col=pal)
+```
+
+We can use the [`leaflet`package](https://rstudio.github.io/leaflet/) that produce an interactive HTML object. Depending on the version leaflet and its dependencies, a warning related to the projection may appear.
+
+```{r}
+require(leaflet)
+## select the map 
+rrMar30 <- rr[[90]]
+##rrMar30[is.na(rrMar30)] <- 0
+## create a nice palette
+pal <- colorNumeric(c("#2b83ba","#80bfac","#c7e9ad","#ffffbf", "#fec980", "#f17c4a", "#d7191c"), values(rrMar30),
+                        na.color = "transparent")
+m <- leaflet() %>% addTiles() %>% 
+   addRasterImage(rrMar30, colors = pal) %>% 
+    addLegend(pal = pal, values = values(rrMar30), title = "DHW")
+m 
+```
+
+
+### Max dhw and when it occured
+
+We want the maximum dhw for 2020 at a particular location and when it occur (the first date)
+
+```{r}
+require(raster)
+## create a dhwMax map
+pal <- c("#2b83ba","#80bfac","#c7e9ad","#ffffbf", "#fec980", "#f17c4a", "#d7191c")
+
+## get the max
+rrMax <- max(rr)
+plot(rrMax, col=pal, main="DHWmax")
+
+## get the date (day of the year) when the max occurred
+rrMaxDate <- which.max(rr)
+## let's limit the range of days as max DHW could occur by the end of the year in the norther PNG
+plot(rrMaxDate, zlim=c(30,100), main="Day of the year of the DHWmax")
+```
+
+
+### DHW for a sampling location
+
+We sampled the GBR at one location at one particular date and we want to know the DHW of the sampling date and how many days away occurred the DHW max. Our sampling location was at POINT (147.03552 -18.69048) on April 15 2020
+
+```{r}
+require(rasteR)
+require(lubridate)
+## define constants
+pal <- c("#2b83ba","#80bfac","#c7e9ad","#ffffbf", "#fec980", "#f17c4a", "#d7191c")  ## DHW palette
+lon <- 147.03552
+lat <- -18.69048
+samplingDate=ymd(20200415)
+xyPoint <- SpatialPoints(cbind(lon, lat))
+samplingYday <- yday(samplingDate)
+
+## select the map corresponding to the sampling day
+rrSampling <- rr[[samplingYday]]
+
+## plot the map and location
+plot(rrSampling, col=pal)
+plot(xyPoint, add=TRUE, col="black")
+
+##get dhw value
+dhw <- extract(rrSampling, xyPoint)
+
+## get the dhwMax and max Date map
+rrMax <- max(rr)
+rrMaxDate <- which.max(rr)
+
+## extract the date when the max occurred at sampling location
+dhwMax <- extract(rrMax, xyPoint)
+dhwMaxDate <- extract(rrMaxDate, xyPoint)
+
+## calculate the number of day between the sampling date and the day when the DHW max occurred at the sampling location
+daydiff <- samplingYday - dhwMaxDate
+
+## print the result
+print(paste0("The location (", lon, ", ", lat, ") sampled on ", samplingDate, ", registered a DHW value of ", round(dhw, 2), 
+             " °C-week. For the same location, the maximum value of dhw (", round(dhwMax,2), 
+             " °C-week), occurred ", daydiff, ' days previous to the sampling date.'))
+
+```
+
