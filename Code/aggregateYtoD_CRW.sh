@@ -78,6 +78,8 @@ logFileAria=$logDir/${roiName}${paramName}_YtoD_aria.log
 echo ========== >$logFileAria
 echo ========== >>$logFile
 echo `date`: START - processing $roiName $paramName from $yearStart thru $yearEnd. >$logFile
+echo `date`: INFO - parameter file is ${paramFile} >$logFile
+
 
 ## log entry
 echo `date`: PASS - start processing year $currentYear. >>$logFile
@@ -187,7 +189,7 @@ GETFILES
         timeEnd=`ncks -H --jsn -v time ${outDirAgg}/${fileName} | jq .variables.time.data[-1]`
         epochYear=$(echo $timeValueSecsUnits | cut -d\  -f3)
         lastDate=`ncks --jsn -v time ${outDirAgg}/$fileName | jq .variables.time.data[-1]`
-        lastDate=`date -d "${epochYear} ${lastDate} seconds" +%Y-%m-%d
+        lastDate=`date -d "${epochYear} ${lastDate} seconds" +%Y-%m-%d`
 
         timeStartDate=`date -d "${epochYear} ${timeStart} seconds" +%Y-%m-%d`
         timeEndDate=`date -d "${epochYear} ${timeEnd} seconds" +%Y-%m-%d`
