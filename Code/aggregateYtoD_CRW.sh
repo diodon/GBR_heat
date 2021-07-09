@@ -58,18 +58,19 @@ fi
 
 
 ## results path
-resultPath=${dataDir}/${roiName}
-fileListPath=${resultPath}/${paramName}/Filelist_YtoD
-tmpPath=${resultPath}/${paramName}/tmp_YtoD
-logDir=${resultPath}/${paramName}/log
-outDir=${resultPath}/${paramName}/CRW_YtoD
-outDirAgg=${outDir}_aggregate
+resultPath=${dataDir}/${roiName}                ## Base dir.            ex. /data/GBR
+fileListPath=${resultPath}/${paramName}/Filelist_YtoD       ## FTP file names      ex. /data/GBR/dhw/Filelist_YtoD
+tmpPath=${resultPath}/${paramName}/tmp_YtoD     ## FTP downloaded files ex. /data/GBR/dhw/tmp_YtoD
+logDir=${resultPath}/${paramName}/log           ## log files            ex. /data/GBR/dhw/log
+outDir=${resultPath}/${paramName}/CRW_YtoD      ## croped files         ex. /data/GBR/dhw/CRW_YtoD
+outDirAgg=${outDir}_aggregate                   ## aggregated files     ex. /data/GBR/dhw/Filelist_YtoD_aggregate
 mkdir -p $fileListPath
 mkdir -p $tmpPath
 mkdir -p $outDir
 mkdir -p $outDirAgg
 mkdir -p $logDir
 
+## Logfile names. Aria log file is a huge file: 1y could be +50MB
 logFile=$logDir/${roiName}${paramName}_YtoD_log.log
 logFileAria=$logDir/${roiName}${paramName}_YtoD_aria.log
 
@@ -77,12 +78,6 @@ logFileAria=$logDir/${roiName}${paramName}_YtoD_aria.log
 echo ========== >$logFileAria
 echo ========== >>$logFile
 echo `date`: START - processing $roiName $paramName from $yearStart thru $yearEnd. >$logFile
-
-
-
-
-## loop over the year range
-##for yy in `seq $yearStart $yearEnd`; do 
 
 ## log entry
 echo `date`: PASS - start processing year $currentYear. >>$logFile
@@ -101,34 +96,33 @@ ftp -n $sourceURL <<-GETFILES
     bye
 GETFILES
 
-    ## check if got a full file list
-    ## TODO: make it to detect gaps not number of files. programm n repeated tries
-    ## check if list of files file exists
-    if [ ! -e filelist.tmp ]; then
+    ## check if the file of list of filesnames exists
+    if [ ! -s filelist.tmp ]; then
         echo `date`: ERROR - unable to get filelist from FTP. Possible timeout. >>$logFile
         echo `date`: EXIT >>$logFile
         echo ========== >>$logFile
         exit
     fi 
-      
-    ## add ftp info to the file name and save fileList
-    cat filelist.tmp | grep -v -e "md5" >${paramName}FileList_${currentYear}.tmp
-    fileLen=`wc -l ${paramName}FileList_${currentYear}.tmp | cut -d\\  -f1`
+    
+    FileListNameRoot=${paramName}FileList_${currentYear}
+    ## remove .md5 files
+    cat filelist.tmp | grep -v -e "md5" >${FileListNameRoot}.tmp
+    fileLen=`wc -l ${FileListNameRoot}.tmp | cut -d\\  -f1`
     
     ## Log number of files
     echo `date`: PASS - $fileLen file names discovered from FTP. >>$logFile
  
     ## add ftp directory info to each file
-    fileListCurrent=${fileListPath}/${paramName}FileList_${currentYear}.txt
+    fileListCurrent=${fileListPath}/${FileListNameRoot}.txt
     > ${fileListCurrent}    ## reset file
     ftpPath=${sourceURL}/${sourceDir}${paramName}/${currentYear}
-    for ff in `cat ${paramName}FileList_${currentYear}.tmp`; do 
+    for ff in `cat ${FileListNameRoot}.tmp`; do 
         echo ftp://${ftpPath}/${ff} >>${fileListCurrent}
     done
     
-    ## get the undownloded files
-    fileListNew=${fileListPath}/${paramName}FileList_${currentYear}_NEW.txt
-    fileListYtoD=${fileListPath}/${paramName}FileList_${currentYear}_YtoD.txt
+    ## get the new files
+    fileListNew=${fileListPath}/${FileListNameRoot}_NEW.txt
+    fileListYtoD=${fileListPath}/${FileListNameRoot}_YtoD.txt
     
     if [ -s ${fileListYtoD} ]; then
         diff ${fileListCurrent} ${fileListYtoD} |  sed 1d | sed 's/< //' >${fileListNew}
@@ -137,10 +131,9 @@ GETFILES
         fileListNew=${fileListCurrent}
         newRun=true
     fi
-    
-    
-    ## remove unused file list files
-    rm ${paramName}FileList_${currentYear}.tmp
+        
+    ## remove unused filenames list files
+    rm ${FileListNameRoot}.tmp
     rm filelist.tmp
     
     echo GETTING FILES...
