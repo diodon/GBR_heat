@@ -185,7 +185,7 @@ GETFILES
 
         ## Add global attrs
         ## get temporal coverage 
-        timeStart=`ncks -H --jsn -v time ${outDirAgg}/${fileName} | jq .variables.time.data[1]`
+        timeStart=`ncks -H --jsn -v time ${outDirAgg}/${fileName} | jq .variables.time.data[0]`
         timeEnd=`ncks -H --jsn -v time ${outDirAgg}/${fileName} | jq .variables.time.data[-1]`
         epochYear=$(echo $timeValueSecsUnits | cut -d\  -f3)
         lastDate=`ncks --jsn -v time ${outDirAgg}/$fileName | jq .variables.time.data[-1]`
