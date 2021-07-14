@@ -177,9 +177,9 @@ GETFILES
         ## Concatenate new files into the aggregated file. Omit history attribute
         fileName=${roiName}${paramName}_${currentYear}.nc
         if [ $newRun == true ]; then
-            ncrcat -h ${outDir}/*.nc ${outDirAgg}/$fileName
+            ncrcat -O -h ${outDir}/*.nc ${outDirAgg}/$fileName
         else
-            ncrcat -h ${outDirAgg}/$fileName ${outDir}/*.nc ${outDirAgg}/$fileName
+            ncrcat -O -h ${outDirAgg}/$fileName ${outDir}/*.nc ${outDirAgg}/$fileName
         fi
  
 
