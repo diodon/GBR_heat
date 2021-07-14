@@ -107,25 +107,25 @@ GETFILES
     fi 
     
     FileListNameRoot=${paramName}FileList_${currentYear}
+    FileListCurrentTemp=${fileListPath}/${FileListNameRoot}.tmp
     ## remove .md5 files
-    cat filelist.tmp | grep -v -e "md5" >${FileListNameRoot}.tmp
+    cat filelist.tmp | grep -v -e "md5" >${FileListCurrentTemp}
     fileLen=`wc -l ${FileListNameRoot}.tmp | cut -d\\  -f1`
     
     ## Log number of files
     echo `date`: PASS - $fileLen file names discovered from FTP. >>$logFile
  
     ## add ftp directory info to each file
-    fileListCurrent=${fileListPath}/${FileListNameRoot}.txt
+    fileListCurrent=${fileListPath}/${FileListNameRoot}_NEW.txt
     > ${fileListCurrent}    ## reset file
     ftpPath=${sourceURL}/${sourceDir}${paramName}/${currentYear}
-    for ff in `cat ${FileListNameRoot}.tmp`; do 
+    for ff in `cat ${FileListCurrentTemp}`; do 
         echo ftp://${ftpPath}/${ff} >>${fileListCurrent}
     done
     
-    ## get the new files
-    fileListNew=${fileListPath}/${FileListNameRoot}_NEW.txt
-    fileListYtoD=${fileListPath}/${FileListNameRoot}_YtoD.txt
-    
+    ## identify and get the new files
+    fileListYtoD=${fileListPath}/${FileListNameRoot}.txt
+    fileListNew=${fileListPath}/${FileListNameRoot}_diff.txt
     if [ -s ${fileListYtoD} ]; then
         diff ${fileListCurrent} ${fileListYtoD} |  sed 1d | sed 's/< //' >${fileListNew}
         newRun=false
