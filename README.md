@@ -74,6 +74,15 @@ In this example, PLW is the region of interest, dhw the CRW parameter:
 ```
 
 
+#### Excecuting the script
+
+Use the following bash script to harvest all historical data:
+
+`bash ./aggregateYtoD_CRW.sh paramFileName`
+
+The collection of data for one parameter from 1986 to 2020 will take aprox. 7 hours, depending on the connection speed.
+
+
 #### Aggregation of year-to-date data
 
 TODO
@@ -83,7 +92,7 @@ TODO
 The scripts will read a configuration file with the values of the operational variables. The configuration file must have the following keys (using DHW for the GBR region as an example):
 
     {
-        "dataDir": "url root of the storage container",
+        "dataDir": "url root of the storage container. It must exist",
         "sourceURL": "ftp.star.nesdis.noaa.gov",
         "sourceDir": "pub/sod/mecb/crw/data/5km/v3.1/nc/v1.0/daily",
         "ftpUser": "anonymous",
@@ -100,7 +109,7 @@ The scripts will read a configuration file with the values of the operational va
         "shpFile": "shapefile name"
     }
 
-If a polygon other than a rectangle is used to define the ROI, it must be submitted as an ESRI shapefile with ESPG:4326 (lat/lon WGS84) projection. If no shapefile will be use, the valu eof the key `shpfileName` MUST BE set to `none`.
+If a polygon other than a rectangle is used to define the ROI, it must be submitted as an ESRI shapefile with ESPG:4326 (lat/lon WGS84) projection. If no shapefile will be use, the value of the key `shpfileName` MUST BE set to `none`.
 
 ### R functions
 
